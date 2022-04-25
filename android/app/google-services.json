@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "619810378856",
+    "project_id": "smartcrc1",
+    "storage_bucket": "smartcrc1.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:619810378856:android:5142ebf1b7dacd73aa97dd",
+        "android_client_info": {
+          "package_name": "com.example.smart_crc_gf"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "619810378856-eia5irse3mbavqsek2c3vfp8i40bkn5o.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBkLDTTD_CUASfZ9LU1_O7RKWMKL_HUR8c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "619810378856-eia5irse3mbavqsek2c3vfp8i40bkn5o.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "619810378856-7bdvir4mia47r1lb1kcm8vhge8te3e7j.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.crc.smartCRC"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

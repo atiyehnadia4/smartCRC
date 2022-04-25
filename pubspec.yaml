@@ -1,0 +1,42 @@
+name: smart_crc_gf
+description: A new Flutter project.
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=2.11.0 <3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.2
+  cloud_firestore: ^3.1.12
+  firebase_core : ^1.10.2
+  firebase_auth: ^3.3.14
+  introduction_screen: ^3.0.2
+  google_fonts: ^2.3.1
+  scoped_model: ^1.0.1
+  sqflite: ^2.0.2+1
+  flutter_slidable: ^0.5.7
+  flip_card: ^0.6.0
+  slimy_card: ^1.0.4
+  stacked_card_carousel: ^0.0.2+1
+  carousel_slider: ^4.1.1
+
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^1.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/image/
+    - assets/image/crcCardFront.png
+    - assets/image/crcCardBack.png
+    - assets/image/responsibility_icon.png
+    - assets/image/collaborators_icon.png
+
+
