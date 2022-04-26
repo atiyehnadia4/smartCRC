@@ -121,7 +121,7 @@ class CRCEntryNewState extends State<CRCEntryNew> with TickerProviderStateMixin 
               onPressed: (){
                 setState(() {
                   responsibilityTextFormFields.add(createResponsibilityForm());
-                  collaboratorEntries.add(DropDown(responsibilityTextFormFields.length - 1, widget.i));
+                  collaboratorEntries.add(DropDown(responsibilityTextFormFields.length - 1, widget.stackName));
                   collaboratorData.add(null);
                 });
 
@@ -347,42 +347,46 @@ class CRCEntryNewState extends State<CRCEntryNew> with TickerProviderStateMixin 
 
   _save(BuildContext context, snapshot) async {
     if (!_formKey.currentState.validate()) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 4),
+        content: Text('CRC Card not finish. Did not save'),
+      ));
       return;
     }
+    FirebaseFirestore.instance.collection('crc_stack').doc(widget.stackName)
+        .collection('${widget.stackName}_docs').get()
+        .then(
+            (snapshot) {
+          for (var crc in snapshot.docs) {
+            if (_titleEditingController.value.text == crc['class_name']) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                backgroundColor: Colors.red,
+                duration: Duration(seconds: 5),
+                content: Text('CRC Card Already Exists'),
+              ));
+              return;
+            }
+            else{
+              var responsibilities = _onDoneResponsibilities();
+              FirebaseFirestore.instance.collection('crc_stack').doc(widget.stackName)
+                  .collection('${widget.stackName}_docs').add(
+                  {
+                    "class_name": _titleEditingController.value.text,
+                    "description": _descriptionEditingController.value.text,
+                    "responsibilities": responsibilities,
+                    "collaborators": collaboratorData,
 
-    // var docsInsideStack = FirebaseFirestore.instance.collection('crc_stack').doc(widget.stackName)
-    //     .collection('${widget.stackName}_docs').snapshots();
-    // var docsInsideStack2 = FirebaseFirestore.instance.collection('crc_stack').doc(widget.stackName)
-    //     .collection('${widget.stackName}_docs').get();
-    // var docLength = await docsInsideStack.length;
-    // for(var i = 0; i < docLength; i++){
-    //   if(_titleEditingController.value.text == docsInsideStack2.docs[i]['class_name']){
-    //     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-    //       backgroundColor: Colors.red,
-    //       duration: Duration(seconds: 5),
-    //       content: Text('CRC Card Already Exists'),
-    //     ));
-    //     return;
-    //   }
-    // }
-
-
-    var responsibilities = _onDoneResponsibilities();
-      FirebaseFirestore.instance.collection('crc_stack').doc(widget.stackName).collection('${widget.stackName}_docs').add(
-          {
-            "class_name": _titleEditingController.value.text,
-            "description": _descriptionEditingController.value.text,
-            "responsibilities": responsibilities,
-            "collaborators" : collaboratorData,
-
-          }).then((value){
-      });
-//      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        backgroundColor: Colors.green,
-        duration: Duration(seconds: 4),
-        content: Text('CRC Card saved'),
-      ));
+                  })
+                  .then((value) {});
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 4),
+                content: Text('CRC Card saved'),
+              ));
+            }
+          }
+        });
 
     responsibilityTECs.clear();
     responsibilityTextFormFields.clear();

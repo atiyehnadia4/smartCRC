@@ -7,8 +7,8 @@ class DropDownExisting extends StatefulWidget {
   final String value;
   final int index;
   final String currCard;
-  final int stackIndex;
-  DropDownExisting(this.value, this.index, this.currCard, this.stackIndex);
+  final String stackName;
+  DropDownExisting(this.value, this.index, this.currCard, this.stackName);
   @override
   _DropDownExistingState createState() => _DropDownExistingState();
 }
@@ -19,7 +19,7 @@ class _DropDownExistingState extends State<DropDownExisting> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder(
-        stream: FirebaseFirestore.instance.collection('crc_stack').doc('stack${widget.stackIndex}').collection('stack${widget.stackIndex}_docs')
+        stream: FirebaseFirestore.instance.collection('crc_stack').doc(widget.stackName).collection('${widget.stackName}_docs')
             .snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) return const Text('Loading...');

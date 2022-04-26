@@ -16,10 +16,8 @@ class CRCStack extends StatefulWidget {
 
 class CRCStackState extends State<CRCStack> {
   var index = 0;
-  List<List<Widget>> cardLists = [];
-  List<String> stackList = [];
+  List<Widget> cardList = [];
   TextEditingController stackTitleController = TextEditingController();
-
   GlobalKey<FlipCardState> cardKey = GlobalKey<FlipCardState>();
 
 
@@ -32,12 +30,16 @@ class CRCStackState extends State<CRCStack> {
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 20.0)),
         ),
-        floatingActionButton: FloatingActionButton(
-            child: const Icon(Icons.add, color: Colors.white),
-            onPressed: () {
+        bottomNavigationBar: BottomNavigationBar(
+          items: [
+            BottomNavigationBarItem(icon: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.blue,), onPressed: () {
+              Navigator.pop(context);
+            },), label: 'Back'),
+            BottomNavigationBarItem(icon: IconButton(icon: const  Icon(Icons.add, color: Colors.blue,), onPressed: () {
               _addStack();
               index++;
-            }
+            },), label: 'Add Stack'),
+          ],
         ),
         body: StreamBuilder(
             stream: FirebaseFirestore.instance.collection('crc_stack')
@@ -45,8 +47,9 @@ class CRCStackState extends State<CRCStack> {
             builder: (context, snapshot) {
               if (!snapshot.hasData) return const Text('Loading...');
               return ListView.builder(
-                itemCount: cardLists.length,
+                itemCount: snapshot.data.docs.length,
                 itemBuilder: (BuildContext context, int cardIndex) {
+                  DocumentSnapshot crcStack = snapshot.data.docs[cardIndex];
                   return Container(
                       width: MediaQuery
                           .of(context)
@@ -57,33 +60,18 @@ class CRCStackState extends State<CRCStack> {
                           .size
                           .height / 3,
                       padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                      child: Slidable(
-                          actionPane: const SlidableScrollActionPane(),
-                          actionExtentRatio: .25,
-                          secondaryActions: [
-                            IconSlideAction(
-                                caption: "Delete",
-                                color: Colors.red,
-                                icon: Icons.delete,
-                                onTap: () =>
-                                    _deleteStack(context, snapshot, cardIndex)
-                            )
-                          ],
-                          child: InkWell(
-                            child: CarouselSlider(
-                              options: CarouselOptions(
-                                  autoPlay: true,
-                                  enlargeCenterPage: true,
-                                  aspectRatio: 1.7,
-                                  scrollDirection: Axis.vertical,
-                              ),
-                              items: cardLists[cardIndex],
-                            ),
-
-                            onLongPress: (){
-                              _showStackSecondaryMenu(context, snapshot);
-                            },
-                          )
+                      child: InkWell(
+                        child: _buildStack(crcStack, context),
+                        onTap: (){
+                          Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => CRCList(index, crcStack.id))
+                          );
+                        },
+                        onLongPress: (){
+                          _showStackSecondaryMenu(context, crcStack, snapshot, cardIndex);
+                        },
                       )
                   );
                 },
@@ -93,7 +81,7 @@ class CRCStackState extends State<CRCStack> {
     );
   }
 
-  _deleteStack(BuildContext context, snapshot, index) {
+  _deleteStack(BuildContext context, snapshot, cardIndex) {
     return showDialog(
         context: context,
         barrierDismissible: false,
@@ -108,15 +96,9 @@ class CRCStackState extends State<CRCStack> {
                 ),
                 TextButton(child: const Text("Delete"),
                     onPressed: () async {
-                      snapshot.
-                      snapshot.data.doc('stack$index').delete();
-                      // await FirebaseFirestore.instance.runTransaction((
-                      //     Transaction myTransaction) async {
-                      //   myTransaction.delete(
-                      //     snapshot.data.doc()
-                      //       snapshot.data.docs[index].reference);
-                      // });
-
+                      await FirebaseFirestore.instance.runTransaction((Transaction myTransaction) async {
+                        myTransaction.delete(snapshot.data.docs[cardIndex].reference);
+                      });
                       Navigator.of(context);
                       Navigator.of(alertContext).pop();
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -181,7 +163,111 @@ class CRCStackState extends State<CRCStack> {
     );
   }
 
-  _showStackSecondaryMenu(BuildContext context, snapshot) {
+  _buildStack(stackCRC, context) {
+    var stackName = stackCRC.id;
+    FirebaseFirestore.instance.collection('crc_stack').doc(stackName)
+        .collection('${stackName}_docs').get()
+        .then(
+            (snapshot) {
+          for (var crc in snapshot.docs) {
+            var crcName = crc['class_name'] ?? '';
+            var crcResponsibilities = crc['responsibilities'] ?? '';
+            var crcCollaborators = crc['collaborators'] ?? '';
+            var reducedCollaborators = [];
+            List<dynamic> seen = [];
+            for (var collaborator in crcCollaborators) {
+              if (!seen.contains(collaborator)) {
+                var add = collaborator ?? '';
+                reducedCollaborators.add(add);
+                seen.add(collaborator);
+              }
+            }
+            cardList.add(
+                Card(
+                    shadowColor: Colors.black,
+                    child: Stack(
+                        children: <Widget>[
+                          SizedBox(
+                            child: Column(
+                              children: <Widget>[
+                                Container(
+                                  margin: const EdgeInsets.only(
+                                      top: 25),
+                                  alignment: Alignment.center,
+                                  child: Text(crcName,
+                                    style: const TextStyle(
+                                        fontSize: 20),),
+                                ),
+                                const SizedBox(
+                                  height: 20,
+                                ),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment
+                                      .spaceEvenly,
+                                  crossAxisAlignment: CrossAxisAlignment
+                                      .center,
+                                  children: <Widget>[
+                                    Container(
+                                      margin: const EdgeInsets.only(
+                                          left: 20, bottom: 30),
+                                      child: Column(
+                                        children: <Widget>[
+                                          const Text(
+                                              "Responsibilities:",
+                                              style: TextStyle(
+                                                  fontSize: 15)
+                                          ),
+                                          for(var response in crcResponsibilities)
+                                            Text(response,
+                                                style: const TextStyle(
+                                                    fontSize: 15)
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10,),
+                                    Container(
+                                      margin: const EdgeInsets.only(
+                                          right: 20, bottom: 30),
+                                      child: Column(
+                                        children: <Widget>[
+                                          const Text(
+                                              "Collaborators:",
+                                              style: TextStyle(
+                                                  fontSize: 15)
+                                          ),
+                                          for(var collaborator in reducedCollaborators)
+                                            Text(collaborator,
+                                                style: const TextStyle(
+                                                    fontSize: 15)
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ]
+                    )
+                )
+            );
+          }
+        });
+
+    return CarouselSlider(
+      options: CarouselOptions(
+        autoPlay: true,
+        enlargeCenterPage: true,
+        aspectRatio: 1.7,
+        // scrollDirection: Axis.vertical,
+      ),
+      items: cardList,
+    );
+  }
+
+  _showStackSecondaryMenu(BuildContext context, crcStack, snapshot, cardIndex) {
     showModalBottomSheet(
         context: context,
         builder: (context) {
@@ -199,8 +285,9 @@ class CRCStackState extends State<CRCStack> {
                       title: const Text('Share'),
                     ),
                     ListTile(
-                      onTap: () => _deleteStack(context, snapshot, index),
+                      onTap: () => _deleteStack(context, snapshot, cardIndex),
                       leading: const Icon(Icons.delete, color: Colors.red,),
+                      title: Text('Delete ${crcStack.id}')
                     )
                   ],
                 );
@@ -215,7 +302,9 @@ class CRCStackState extends State<CRCStack> {
   void initState() {
     super.initState();
     setState(() {
-      //populate();
+      // populate();
+      // print(cardLists);
+      // print(stackList);
     });
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
@@ -227,121 +316,7 @@ class CRCStackState extends State<CRCStack> {
   void dispose(){
     setState(() {
       stackTitleController.clear();
-      cardLists.clear();
-      stackList.clear();
     });
-
     super.dispose();
-  }
-
-  populate(){
-    FirebaseFirestore.instance.collection('crc_stack').get().then(
-            (snapshot){
-          snapshot.docs.forEach((element) {
-            setState(() {
-              stackList.add(element.id);
-            });
-          });
-        }
-    );
-    for(var stack in stackList){
-      List<Widget> cardList = [];
-      FirebaseFirestore.instance.collection('crc_stack').doc(stack).collection('${stack}_docs').get().then(
-              (snapshot) {
-            snapshot.docs.forEach((crc) {
-              var crcName = crc['class_name'] ?? '';
-              var crcResponsibilities = crc['responsibilities'] ?? '';
-              var crcCollaborators = crc['collaborators'] ?? '';
-              var reducedCollaborators = [];
-              List<dynamic> seen = [];
-              for (var collaborator in crcCollaborators) {
-                if (!seen.contains(collaborator)) {
-                  var add = collaborator ?? '';
-                  reducedCollaborators.add(add);
-                  seen.add(collaborator);
-                }
-              }
-              setState(() {
-                cardList.add(
-                    Card(
-                        shadowColor: Colors.black,
-                        child: Stack(
-                            children: <Widget>[
-                              SizedBox(
-                                child: Column(
-                                  children: <Widget>[
-                                    Container(
-                                      margin: const EdgeInsets.only(
-                                          top: 25),
-                                      alignment: Alignment.center,
-                                      child: Text(crcName,
-                                        style: const TextStyle(
-                                            fontSize: 20),),
-                                    ),
-                                    const SizedBox(
-                                      height: 20,
-                                    ),
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment
-                                          .spaceEvenly,
-                                      crossAxisAlignment: CrossAxisAlignment
-                                          .center,
-                                      children: <Widget>[
-                                        Container(
-                                          margin: const EdgeInsets.only(
-                                              left: 20, bottom: 30),
-                                          child: Column(
-                                            children: <Widget>[
-                                              const Text(
-                                                  "Responsibilities:",
-                                                  style: TextStyle(
-                                                      fontSize: 15)
-                                              ),
-                                              for(var response in crcResponsibilities)
-                                                Text(response,
-                                                    style: const TextStyle(
-                                                        fontSize: 15)
-                                                ),
-                                            ],
-                                          ),
-                                        ),
-                                        const SizedBox(width: 10,),
-                                        Container(
-                                          margin: const EdgeInsets.only(
-                                              right: 20, bottom: 30),
-                                          child: Column(
-                                            children: <Widget>[
-                                              const Text(
-                                                  "Collaborators:",
-                                                  style: TextStyle(
-                                                      fontSize: 15)
-                                              ),
-                                              for(var collaborator in reducedCollaborators)
-                                                Text(collaborator,
-                                                    style: const TextStyle(
-                                                        fontSize: 15)
-                                                ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ]
-                        )
-                    )
-                );
-              });
-
-            });
-          }
-      );
-      setState(() {
-        cardLists.add(cardList);
-      });
-
-    }
   }
 }

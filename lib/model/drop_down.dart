@@ -6,8 +6,8 @@ import '../crc/crc_entries.dart';
 
 class DropDown extends StatefulWidget {
   final int index;
-  final int stackIndex;
-  DropDown(this.index, this.stackIndex);
+  final String stackName;
+  DropDown(this.index, this.stackName);
   @override
   _DropDownState createState() => _DropDownState();
 }
@@ -17,7 +17,7 @@ class _DropDownState extends State<DropDown> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder(
-        stream: FirebaseFirestore.instance.collection('crc_stack').doc('stack${widget.stackIndex}').collection('stack${widget.stackIndex}_docs')
+        stream: FirebaseFirestore.instance.collection('crc_stack').doc(widget.stackName).collection('${widget.stackName}_docs')
         .snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) return const Text('Loading...');

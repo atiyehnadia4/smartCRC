@@ -43,7 +43,7 @@ class CRCEntryExistingState extends State<CRCEntryExisting> with TickerProviderS
     index = widget.index;
     uid = widget.uid;
     return StreamBuilder(
-        stream: FirebaseFirestore.instance.collection('crc_stack').doc('stack${widget.stackIndex}').collection('stack${widget.stackIndex}_docs')
+        stream: FirebaseFirestore.instance.collection('crc_stack').doc(widget.stackName).collection('${widget.stackName}_docs')
             .snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
@@ -138,7 +138,7 @@ class CRCEntryExistingState extends State<CRCEntryExisting> with TickerProviderS
                       createResponsibilityForm());
                   String newValue;
                   var currCard = crc['class_name'];
-                  collaboratorEntries.add(DropDownExisting(newValue, responsibilityTextFormFields.length - 1, currCard , widget.stackIndex));
+                  collaboratorEntries.add(DropDownExisting(newValue, responsibilityTextFormFields.length - 1, currCard , widget.stackName));
                   collaboratorData.add(null);
                 }
                 );
@@ -499,7 +499,7 @@ class CRCEntryExistingState extends State<CRCEntryExisting> with TickerProviderS
   }
 
   populate() async{
-    DocumentSnapshot crc = await FirebaseFirestore.instance.collection('crc_stack').doc('stack${widget.stackIndex}').collection('stack${widget.stackIndex}_docs').doc(widget.uid).get();
+    DocumentSnapshot crc = await FirebaseFirestore.instance.collection('crc_stack').doc(widget.stackName).collection('${widget.stackName}_docs').doc(widget.uid).get();
     for (var response in crc['responsibilities']) {
       var responseController = TextEditingController();
       responseController.text = response;
@@ -513,7 +513,7 @@ class CRCEntryExistingState extends State<CRCEntryExisting> with TickerProviderS
     var currCard = crc['class_name'];
     for (var collaborator in crc['collaborators']){
       setState(() {
-        collaboratorEntries.add(DropDownExisting(collaborator, index, currCard, widget.stackIndex));
+        collaboratorEntries.add(DropDownExisting(collaborator, index, currCard, widget.stackName));
         collaboratorData.add(collaborator);
       });
       index++;
