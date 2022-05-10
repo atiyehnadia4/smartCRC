@@ -13,6 +13,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class CRCEntryNew extends StatefulWidget {
   final TextEditingController _title = TextEditingController();
   final TextEditingController _description = TextEditingController();
+  final TextEditingController _notes = TextEditingController();
+
   final int i;
   final String stackName;
 
@@ -27,20 +29,23 @@ class CRCEntryNewState extends State<CRCEntryNew> with TickerProviderStateMixin 
   List<TextEditingController> responsibilityTECs = [];
   List<Column> responsibilityTextFormFields = [];
   List<Widget> collaboratorEntries = [];
-  static List<String> collaboratorData = [];
+  static List<List<String>> collaboratorData = [[]];
   TextEditingController _titleEditingController = TextEditingController();
   TextEditingController _descriptionEditingController = TextEditingController();
+  TextEditingController _notesEditingController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   crcEntries() {
     _titleEditingController.addListener(() {});
     _descriptionEditingController.addListener(() {});
+    _notesEditingController.addListener(() { });
   }
 
   @override
   Widget build(BuildContext context) {
     _titleEditingController = widget._title;
     _descriptionEditingController = widget._description;
+    _notesEditingController = widget._notes;
     return StreamBuilder(
         stream: FirebaseFirestore.instance.collection('crc_stack')
             .snapshots(),
@@ -175,6 +180,11 @@ class CRCEntryNewState extends State<CRCEntryNew> with TickerProviderStateMixin 
             const SizedBox(
               height: 10,
             ),
+            const Text('Notes'),
+            _buildNotesContainer(),
+            const SizedBox(
+              height: 10,
+            ),
           ],
         ),
       ),
@@ -208,6 +218,15 @@ class CRCEntryNewState extends State<CRCEntryNew> with TickerProviderStateMixin 
         }
         return null;
       },
+    );
+  }
+
+  _buildNotesContainer(){
+    return TextFormField(
+      keyboardType: TextInputType.multiline,
+      maxLines: null,
+      decoration: const InputDecoration(hintText: 'Notes'),
+      controller: _notesEditingController,
     );
   }
 
@@ -339,7 +358,7 @@ class CRCEntryNewState extends State<CRCEntryNew> with TickerProviderStateMixin 
       // TextButton(
       //   child: const Text('Check'),
       //   onPressed: () {
-      //     print(collaboratorData);
+      //     print(_onDoneCollaborators());
       //   },
       // ),
     ]);
@@ -367,26 +386,27 @@ class CRCEntryNewState extends State<CRCEntryNew> with TickerProviderStateMixin 
               ));
               return;
             }
-            else{
-              var responsibilities = _onDoneResponsibilities();
-              FirebaseFirestore.instance.collection('crc_stack').doc(widget.stackName)
-                  .collection('${widget.stackName}_docs').add(
-                  {
-                    "class_name": _titleEditingController.value.text,
-                    "description": _descriptionEditingController.value.text,
-                    "responsibilities": responsibilities,
-                    "collaborators": collaboratorData,
-
-                  })
-                  .then((value) {});
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                backgroundColor: Colors.green,
-                duration: Duration(seconds: 4),
-                content: Text('CRC Card saved'),
-              ));
-            }
           }
         });
+    var responsibilities = _onDoneResponsibilities();
+    var collaborators = _onDoneCollaborators();
+    var notes = _notesEditingController.value.text ?? '';
+    FirebaseFirestore.instance.collection('crc_stack').doc(widget.stackName)
+        .collection('${widget.stackName}_docs').add(
+        {
+          "class_name": _titleEditingController.value.text,
+          "description": _descriptionEditingController.value.text,
+          "responsibilities": responsibilities,
+          "collaborators": collaborators,
+          "notes": notes,
+
+        })
+        .then((value) {});
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      backgroundColor: Colors.green,
+      duration: Duration(seconds: 4),
+      content: Text('CRC Card saved'),
+    ));
 
     responsibilityTECs.clear();
     responsibilityTextFormFields.clear();
@@ -401,6 +421,19 @@ class CRCEntryNewState extends State<CRCEntryNew> with TickerProviderStateMixin 
       entries.add(responsibility);
     }
     return entries;
+  }
+
+  _onDoneCollaborators(){
+    Map<String, List<String>> collabDict = {};
+    var i = 0;
+    for(var list in collaboratorData){
+      if(list != null){
+        var intString = i.toString();
+        collabDict[intString] = list;
+      }
+      i++;
+    }
+    return collabDict;
   }
 
   createResponsibilityForm() {

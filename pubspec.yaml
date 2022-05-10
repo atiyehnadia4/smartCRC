@@ -23,6 +23,7 @@ dependencies:
   stacked_card_carousel: ^0.0.2+1
   carousel_slider: ^4.1.1
   card_selector: ^0.1.0
+  multi_select_flutter: ^4.1.2
 
 
 dev_dependencies:

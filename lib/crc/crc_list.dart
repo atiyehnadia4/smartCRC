@@ -29,9 +29,9 @@ class CRCListState extends State<CRCList> {
     return Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
-          title: const Text("CRC Cards List",
+          title: Text( widget.stackName,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 20.0)),
+              style: const TextStyle(fontSize: 20.0)),
         ),
         bottomNavigationBar: BottomNavigationBar(
           items: [
@@ -146,18 +146,26 @@ class CRCListState extends State<CRCList> {
   }
 
   Stack _buildFrontCard(DocumentSnapshot crc, context) {
+    // if(crc['test'] == 'test'){
+    //   return Stack();
+    // }
     var crcName = crc['class_name'] ?? '';
     var crcResponsibilities = crc['responsibilities'] ?? '';
     var crcCollaborators = crc['collaborators'] ?? '';
     var reducedCollaborators = [];
-    List<dynamic> seen = [];
-    for(var collaborator in crcCollaborators){
-      if(!seen.contains(collaborator)){
-        var add = collaborator ?? '';
-        reducedCollaborators.add(add);
-        seen.add(collaborator);
+    var seen = [];
+
+    var collaborators = crcCollaborators as Map;
+    collaborators.forEach((key, value) {
+      for(var val in value){
+        if(!seen.contains(val)){
+          var add = val ?? '';
+          reducedCollaborators.add(add);
+          seen.add(val);
+        }
       }
-    }
+
+    });
     return Stack(
         children: <Widget>[
           IntrinsicHeight(
@@ -204,8 +212,8 @@ class CRCListState extends State<CRCList> {
                             const Text("Collaborators:", style: TextStyle(
                                 fontSize: 15)),
                             for(var collaborator in reducedCollaborators)
-                              Text(collaborator, style: const TextStyle(
-                                  fontSize: 15)),
+                                Text(collaborator, style: const TextStyle(
+                                    fontSize: 15)),
 
                           ],
                         ),

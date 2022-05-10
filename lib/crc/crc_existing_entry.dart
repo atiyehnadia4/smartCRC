@@ -27,16 +27,15 @@ class CRCEntryExistingState extends State<CRCEntryExisting> with TickerProviderS
   var responsibilityTECs = <TextEditingController>[];
   var responsibilityTextFormFields = <Column>[];
   List<Widget> collaboratorEntries = [];
-  static List<String> collaboratorData = [];
+  static List<List<String>> collaboratorData = [[]];
   var uid = '';
   final TextEditingController _titleEditingController = TextEditingController();
   final TextEditingController _descriptionEditingController = TextEditingController();
+  final TextEditingController _notesEditingController = TextEditingController();
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
-  crcExistingEntries() {
-
-  }
+  crcExistingEntries() {}
 
   @override
   Widget build(BuildContext context) {
@@ -136,7 +135,7 @@ class CRCEntryExistingState extends State<CRCEntryExisting> with TickerProviderS
                 setState(() {
                   responsibilityTextFormFields.add(
                       createResponsibilityForm());
-                  String newValue;
+                  List<String> newValue;
                   var currCard = crc['class_name'];
                   collaboratorEntries.add(DropDownExisting(newValue, responsibilityTextFormFields.length - 1, currCard , widget.stackName));
                   collaboratorData.add(null);
@@ -294,6 +293,16 @@ class CRCEntryExistingState extends State<CRCEntryExisting> with TickerProviderS
             const SizedBox(
               height: 10,
             ),
+            const Text('Notes'),
+            TextFormField(
+              keyboardType: TextInputType.multiline,
+              maxLines: null,
+              decoration: const InputDecoration(hintText: 'Notes'),
+              controller: _notesEditingController,
+            ),
+            const SizedBox(
+              height: 10,
+            ),
           ],
         ),
       ),
@@ -321,9 +330,6 @@ class CRCEntryExistingState extends State<CRCEntryExisting> with TickerProviderS
                         collaboratorEntries.elementAt(index),
                     separatorBuilder: (context, index) =>
                     const SizedBox(height: 10,),
-                    // physics: scrollable
-                    //     ? null
-                    //     : const NeverScrollableScrollPhysics(),
                     padding: const EdgeInsets.all(8),
                   )
               )
@@ -371,12 +377,15 @@ class CRCEntryExistingState extends State<CRCEntryExisting> with TickerProviderS
     }
 
     var responsibilities = _onDone();
-    FirebaseFirestore.instance.collection('crc_stack').doc('stack${widget.stackIndex}').collection('stack${widget.stackIndex}_docs').doc(uid).update(
+    var collaborators = _onDoneCollaborators();
+    var notes = _notesEditingController.value.text ?? '';
+    FirebaseFirestore.instance.collection('crc_stack').doc(widget.stackName).collection('${widget.stackName}_docs').doc(uid).update(
         {
           "class_name": _titleEditingController.value.text,
           "description": _descriptionEditingController.value.text,
           "responsibilities": responsibilities,
-          "collaborators" : collaboratorData,
+          "collaborators" : collaborators,
+          "notes" : notes,
 
         }).then((value){
       print('success');
@@ -399,7 +408,7 @@ class CRCEntryExistingState extends State<CRCEntryExisting> with TickerProviderS
   _updateList(type, crc){
     if(type == 'r'){
       var response = _onDone();
-      FirebaseFirestore.instance.collection('crc_stack').doc(uid).update(
+      FirebaseFirestore.instance.collection('crc_stack').doc(widget.stackName).collection('${widget.stackName}_docs').doc(uid).update(
           {
             "responsibilities": response,
             "collaborators": collaboratorData
@@ -417,6 +426,19 @@ class CRCEntryExistingState extends State<CRCEntryExisting> with TickerProviderS
       entries.add(responsibility);
     }
     return entries;
+  }
+
+  _onDoneCollaborators(){
+    Map<String, List<String>> collabDict = {};
+    var i = 0;
+    for(var list in collaboratorData){
+      if(list != null){
+        var intString = i.toString();
+        collabDict[intString] = list;
+      }
+      i++;
+    }
+    return collabDict;
   }
 
   createResponsibilityForm() {
@@ -511,16 +533,23 @@ class CRCEntryExistingState extends State<CRCEntryExisting> with TickerProviderS
     }
     var index = 0;
     var currCard = crc['class_name'];
-    for (var collaborator in crc['collaborators']){
+    var collaborators = crc['collaborators'] as Map;
+    print(collaborators);
+    collaborators.forEach((key, collaborator) {
       setState(() {
-        collaboratorEntries.add(DropDownExisting(collaborator, index, currCard, widget.stackName));
-        collaboratorData.add(collaborator);
+        List<String> collaboratorList = [];
+        for(var collab in collaborator){
+          collaboratorList.add(collab.toString());
+        }
+        collaboratorEntries.add(DropDownExisting(collaboratorList, index, currCard, widget.stackName));
+        collaboratorData.add(collaboratorList);
       });
-      index++;
-    }
+    });
 
     _titleEditingController.text = crc['class_name'];
     _descriptionEditingController.text = crc['description'];
+    _notesEditingController.text = crc['notes'] ?? '';
+
   }
 
 }

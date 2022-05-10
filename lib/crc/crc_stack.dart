@@ -16,7 +16,8 @@ class CRCStack extends StatefulWidget {
 
 class CRCStackState extends State<CRCStack> {
   var index = 0;
-  List<Widget> cardList = [];
+  List<List<Widget>> cardList = [];
+  List<Widget> stacks = [];
   TextEditingController stackTitleController = TextEditingController();
   GlobalKey<FlipCardState> cardKey = GlobalKey<FlipCardState>();
 
@@ -45,9 +46,11 @@ class CRCStackState extends State<CRCStack> {
             stream: FirebaseFirestore.instance.collection('crc_stack')
                 .snapshots(),
             builder: (context, snapshot) {
-              if (!snapshot.hasData) return const Text('Loading...');
+              if (!snapshot.hasData) {
+                return const Text('Loading...');
+              }
               return ListView.builder(
-                itemCount: snapshot.data.docs.length,
+                itemCount: stacks.length,
                 itemBuilder: (BuildContext context, int cardIndex) {
                   DocumentSnapshot crcStack = snapshot.data.docs[cardIndex];
                   return Container(
@@ -61,7 +64,13 @@ class CRCStackState extends State<CRCStack> {
                           .height / 3,
                       padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                       child: InkWell(
-                        child: _buildStack(crcStack, context),
+                        child: Column(
+                          children: <Widget> [
+                            Text('${crcStack.id} Stack', style: TextStyle(fontSize: 20),),
+                            const SizedBox(height: 20),
+                            stacks[cardIndex],
+                          ],
+                        ) ,
                         onTap: (){
                           Navigator.push(
                               context,
@@ -99,7 +108,9 @@ class CRCStackState extends State<CRCStack> {
                       await FirebaseFirestore.instance.runTransaction((Transaction myTransaction) async {
                         myTransaction.delete(snapshot.data.docs[cardIndex].reference);
                       });
-                      Navigator.of(context);
+                      stacks.removeAt(cardIndex);
+                      cardList.removeAt(cardIndex);
+                      Navigator.of(context).pop();
                       Navigator.of(alertContext).pop();
                       ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
@@ -163,108 +174,143 @@ class CRCStackState extends State<CRCStack> {
     );
   }
 
-  _buildStack(stackCRC, context) {
-    var stackName = stackCRC.id;
-    FirebaseFirestore.instance.collection('crc_stack').doc(stackName)
-        .collection('${stackName}_docs').get()
-        .then(
-            (snapshot) {
-          for (var crc in snapshot.docs) {
-            var crcName = crc['class_name'] ?? '';
-            var crcResponsibilities = crc['responsibilities'] ?? '';
-            var crcCollaborators = crc['collaborators'] ?? '';
-            var reducedCollaborators = [];
-            List<dynamic> seen = [];
-            for (var collaborator in crcCollaborators) {
-              if (!seen.contains(collaborator)) {
-                var add = collaborator ?? '';
-                reducedCollaborators.add(add);
-                seen.add(collaborator);
-              }
-            }
-            cardList.add(
-                Card(
-                    shadowColor: Colors.black,
-                    child: Stack(
-                        children: <Widget>[
-                          SizedBox(
-                            child: Column(
-                              children: <Widget>[
-                                Container(
-                                  margin: const EdgeInsets.only(
-                                      top: 25),
-                                  alignment: Alignment.center,
-                                  child: Text(crcName,
-                                    style: const TextStyle(
-                                        fontSize: 20),),
-                                ),
-                                const SizedBox(
-                                  height: 20,
-                                ),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment
-                                      .spaceEvenly,
-                                  crossAxisAlignment: CrossAxisAlignment
-                                      .center,
-                                  children: <Widget>[
-                                    Container(
-                                      margin: const EdgeInsets.only(
-                                          left: 20, bottom: 30),
-                                      child: Column(
-                                        children: <Widget>[
-                                          const Text(
-                                              "Responsibilities:",
-                                              style: TextStyle(
-                                                  fontSize: 15)
-                                          ),
-                                          for(var response in crcResponsibilities)
-                                            Text(response,
-                                                style: const TextStyle(
-                                                    fontSize: 15)
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10,),
-                                    Container(
-                                      margin: const EdgeInsets.only(
-                                          right: 20, bottom: 30),
-                                      child: Column(
-                                        children: <Widget>[
-                                          const Text(
-                                              "Collaborators:",
-                                              style: TextStyle(
-                                                  fontSize: 15)
-                                          ),
-                                          for(var collaborator in reducedCollaborators)
-                                            Text(collaborator,
-                                                style: const TextStyle(
-                                                    fontSize: 15)
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ]
-                    )
+  _buildStack() async {
+    stacks.clear();
+    cardList.clear();
+    
+    var stackSnapshot = await FirebaseFirestore.instance.collection('crc_stack').get();
+
+    List stackList = stackSnapshot.docs;
+
+    var i = 0;
+    for(var stack in stackList) {
+      stacks.add(null);
+      var crcCollectionSnapshot = await FirebaseFirestore.instance.collection(
+          'crc_stack').doc(stack.id).collection('${stack.id}_docs').get();
+
+      List crcCardList = crcCollectionSnapshot.docs;
+
+      if(crcCardList.isEmpty) {
+        cardList.add(
+            List<Card>.filled(1, Card(
+                shadowColor: Colors.black,
+                child: SizedBox(
+                  width: 500,
+                  height: 30,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: <Widget> [Text('${stack.id} Stack', textAlign: TextAlign.center, style: const TextStyle(fontSize: 30)),],) ),
                 )
-            );
+            , growable: true));
+      }
+      else{
+        cardList.add(List<Card>.filled(crcCardList.length, const Card(), growable: true));
+      }
+
+      var j = 0;
+      for (var crc in crcCardList) {
+        var crcName = crc['class_name'] ?? '';
+        var crcResponsibilities = crc['responsibilities'] ?? '';
+        var crcCollaborators = crc['collaborators'] ?? '';
+        var reducedCollaborators = [];
+        List<dynamic> seen = [];
+        var collaborators = crcCollaborators as Map;
+        collaborators.forEach((key, value) {
+          for (var val in value) {
+            if (!seen.contains(val)) {
+              var add = val ?? '';
+              reducedCollaborators.add(add);
+              seen.add(val);
+            }
           }
         });
-
-    return CarouselSlider(
-      options: CarouselOptions(
-        autoPlay: true,
-        enlargeCenterPage: true,
-        aspectRatio: 1.7,
-        // scrollDirection: Axis.vertical,
-      ),
-      items: cardList,
-    );
+        cardList[i][j] = Card(
+            shadowColor: Colors.black,
+            child: Stack(
+                children: <Widget>[
+                  SizedBox(
+                    child: Column(
+                      children: <Widget>[
+                        Container(
+                          margin: const EdgeInsets.only(
+                              top: 25),
+                          alignment: Alignment.center,
+                          child: Text(crcName,
+                            style: const TextStyle(
+                                fontSize: 20),),
+                        ),
+                        const SizedBox(
+                          height: 20,
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment
+                              .spaceEvenly,
+                          crossAxisAlignment: CrossAxisAlignment
+                              .center,
+                          children: <Widget>[
+                            Container(
+                              margin: const EdgeInsets.only(
+                                  left: 20, bottom: 30),
+                              child: Column(
+                                children: <Widget>[
+                                  const Text(
+                                      "Responsibilities:",
+                                      style: TextStyle(
+                                          fontSize: 15)
+                                  ),
+                                  for(var response in crcResponsibilities)
+                                    Text(response,
+                                        style: const TextStyle(
+                                            fontSize: 15)
+                                    ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 10,),
+                            Container(
+                              margin: const EdgeInsets.only(
+                                  right: 20, bottom: 30),
+                              child: Column(
+                                children: <Widget>[
+                                  const Text(
+                                      "Collaborators:",
+                                      style: TextStyle(
+                                          fontSize: 15)
+                                  ),
+                                  for(var collaborator in reducedCollaborators)
+                                    Text(collaborator,
+                                        style: const TextStyle(
+                                            fontSize: 15)
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ]
+            )
+        );
+        j++;
+      }
+      stacks[i] = CarouselSlider(
+        options: CarouselOptions(
+          // autoPlay: true,
+          enlargeCenterPage: true,
+          aspectRatio: 1.7,
+          // scrollDirection: Axis.vertical,
+        ),
+        items: cardList[i],
+      );
+      i++;
+    }
+    setState(() {
+      stacks;
+      cardList;
+    });
   }
 
   _showStackSecondaryMenu(BuildContext context, crcStack, snapshot, cardIndex) {
@@ -301,10 +347,10 @@ class CRCStackState extends State<CRCStack> {
   @override
   void initState() {
     super.initState();
+    stacks.clear();
+    cardList.clear();
     setState(() {
-      // populate();
-      // print(cardLists);
-      // print(stackList);
+      _buildStack();
     });
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
@@ -316,7 +362,10 @@ class CRCStackState extends State<CRCStack> {
   void dispose(){
     setState(() {
       stackTitleController.clear();
+      stacks.clear();
+      cardList.clear();
     });
     super.dispose();
   }
+
 }
