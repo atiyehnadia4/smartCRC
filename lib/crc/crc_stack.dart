@@ -66,7 +66,7 @@ class CRCStackState extends State<CRCStack> {
                       child: InkWell(
                         child: Column(
                           children: <Widget> [
-                            Text('${crcStack.id} Stack', style: TextStyle(fontSize: 20),),
+                            Text('${crcStack.id} Stack', style: const TextStyle(fontSize: 20),),
                             const SizedBox(height: 20),
                             stacks[cardIndex],
                           ],
@@ -217,13 +217,16 @@ class CRCStackState extends State<CRCStack> {
         List<dynamic> seen = [];
         var collaborators = crcCollaborators as Map;
         collaborators.forEach((key, value) {
-          for (var val in value) {
-            if (!seen.contains(val)) {
-              var add = val ?? '';
-              reducedCollaborators.add(add);
-              seen.add(val);
+          if(key != '-1') {
+            for (var val in value) {
+              if (!seen.contains(val)) {
+                var add = val ?? '';
+                reducedCollaborators.add(add);
+                seen.add(val);
+              }
             }
           }
+
         });
         cardList[i][j] = Card(
             shadowColor: Colors.black,

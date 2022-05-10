@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:smart_crc_gf/crc/crc_entries.dart';
 import 'package:smart_crc_gf/crc/crc_stack.dart';
+import 'package:smart_crc_gf/crc/crc_study_mode.dart';
 import 'crc_existing_entry.dart';
 
 class CRCList extends StatefulWidget {
@@ -29,7 +30,7 @@ class CRCListState extends State<CRCList> {
     return Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
-          title: Text( widget.stackName,
+          title: Text('${widget.stackName} Stack',
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 20.0)),
         ),
@@ -42,11 +43,10 @@ class CRCListState extends State<CRCList> {
               );
             },), label: 'Back'),
             BottomNavigationBarItem(icon: IconButton(icon: const Icon(Icons.auto_awesome_motion,color: Colors.blue,), onPressed: () {
-              // Navigator.push(
-              //   context,
-              //   MaterialPageRoute(builder: (context) => const CRCStack()),
-              // );
-              print('lol');
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => CRCStudy(widget.stackName)),
+              );
             },), label: 'Study Mode'),
             BottomNavigationBarItem(icon: IconButton(icon: const  Icon(Icons.add, color: Colors.blue,), onPressed: () {
               Navigator.push(
@@ -61,6 +61,19 @@ class CRCListState extends State<CRCList> {
                 .snapshots(),
             builder: (context, snapshot) {
               if (!snapshot.hasData) return const Text('Loading...');
+              if(snapshot.data.docs.length == 0){
+                return Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: const <Widget> [
+                    Text('Press the Add Card Button to add a card to your stack!', style: TextStyle(fontSize: 20), textAlign: TextAlign.center,),
+                    SizedBox(height: 10,),
+                    Text('Press the Back Button to view your other stacks!', style: TextStyle(fontSize: 20, color: Colors.red), textAlign: TextAlign.center,),
+                    SizedBox(height: 10,),
+                    Text('Press the Study Mode Button to study the cards in your stack!', style: TextStyle(fontSize: 20), textAlign: TextAlign.center,),
+                  ],
+                );
+              }
               return ListView.builder(
                 itemCount: snapshot.data.docs.length,
                 itemBuilder: (BuildContext context, int index) {
@@ -94,6 +107,9 @@ class CRCListState extends State<CRCList> {
                                                 index: index, uid: uid, stackIndex: widget.index, stackName: widget.stackName,),)
                                   );
                                 },
+                                onLongPress: (){
+                                  _showStackSecondaryMenu();
+                                },
                               ),
                             )
                         ),
@@ -103,6 +119,32 @@ class CRCListState extends State<CRCList> {
               );
             }
         )
+    );
+  }
+
+  _showStackSecondaryMenu() {
+    showModalBottomSheet(
+        context: context,
+        builder: (context) {
+          return SafeArea(
+            child: BottomSheet(
+              onClosing: () {},
+              builder: (context) {
+                return ListView(
+                  padding: const EdgeInsets.fromLTRB(0, 8, 0, 0),
+                  shrinkWrap: true,
+                  children: [
+                    ListTile(
+                      onTap: () {},
+                      leading: const Icon(Icons.ios_share),
+                      title: const Text('Share'),
+                    ),
+                  ],
+                );
+              },
+            ),
+          );
+        }
     );
   }
 
@@ -150,18 +192,20 @@ class CRCListState extends State<CRCList> {
     //   return Stack();
     // }
     var crcName = crc['class_name'] ?? '';
-    var crcResponsibilities = crc['responsibilities'] ?? '';
-    var crcCollaborators = crc['collaborators'] ?? '';
+    var crcResponsibilities = crc['responsibilities'] ?? [];
+    var crcCollaborators = crc['collaborators'] ?? {'-1' : ['']};
     var reducedCollaborators = [];
     var seen = [];
 
     var collaborators = crcCollaborators as Map;
     collaborators.forEach((key, value) {
-      for(var val in value){
-        if(!seen.contains(val)){
-          var add = val ?? '';
-          reducedCollaborators.add(add);
-          seen.add(val);
+      if(key != '-1') {
+        for (var val in value) {
+          if (!seen.contains(val)) {
+            var add = val ?? '';
+            reducedCollaborators.add(add);
+            seen.add(val);
+          }
         }
       }
 
@@ -194,19 +238,16 @@ class CRCListState extends State<CRCList> {
                           children: <Widget>[
                             const Text("Responsibilities:", style: TextStyle(
                                 fontSize: 15)),
-                            for(var response in crcResponsibilities)
-                              Text(response, style: const TextStyle(
-                                  fontSize: 15)),
+                            if(crcResponsibilities.length != 0)
+                              for(var response in crcResponsibilities)
+                                Text(response, style: const TextStyle(
+                                    fontSize: 15)),
                           ],
                         ),
                       ),
                       const SizedBox(width: 100,),
                       Container(
                         margin: const EdgeInsets.only(right: 20, bottom: 30),
-                        // width: MediaQuery
-                        //     .of(context)
-                        //     .size
-                        //     .width/2.6,
                         child: Column(
                           children: <Widget>[
                             const Text("Collaborators:", style: TextStyle(

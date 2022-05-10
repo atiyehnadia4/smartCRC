@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -33,6 +31,7 @@ class CRCEntryNewState extends State<CRCEntryNew> with TickerProviderStateMixin 
   TextEditingController _titleEditingController = TextEditingController();
   TextEditingController _descriptionEditingController = TextEditingController();
   TextEditingController _notesEditingController = TextEditingController();
+  TextEditingController _newCardEditingController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   crcEntries() {
@@ -68,7 +67,16 @@ class CRCEntryNewState extends State<CRCEntryNew> with TickerProviderStateMixin 
                     child: Column(
                       children: <Widget>[
                         const SizedBox(
-                          height: 100.0,
+                          height: 80.0,
+                        ),
+                        Align(
+                          alignment: Alignment.center,
+                          child: TextButton(
+                            child: const Text('Import'),
+                            onPressed: () {
+                              print('ol');
+                            },
+                          ),
                         ),
                         const Text("Create CRC Card",
                             textAlign: TextAlign.center,
@@ -354,6 +362,13 @@ class CRCEntryNewState extends State<CRCEntryNew> with TickerProviderStateMixin 
           );
         },
       ),
+      const Spacer(),
+      TextButton(
+        child: const Text('Add Collaborator'),
+        onPressed: () {
+          _addCard();
+        },
+      ),
       // const Spacer(),
       // TextButton(
       //   child: const Text('Check'),
@@ -362,6 +377,56 @@ class CRCEntryNewState extends State<CRCEntryNew> with TickerProviderStateMixin 
       //   },
       // ),
     ]);
+  }
+
+  _addCard(){
+    _newCardEditingController.clear();
+    return showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext alertContext) {
+          return AlertDialog(
+              title: const Text("Add Stack"),
+              content: const Text(
+                  "Please enter the name of your new CRC Card"),
+              actions: [
+                TextFormField(
+                  controller: _newCardEditingController,
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: <Widget> [
+                    TextButton(child: const Text("Cancel"),
+                      onPressed: () => {Navigator.of(alertContext).pop()},
+                    ),
+                    TextButton(child: const Text("Add"),
+                        onPressed: () async {
+                          FirebaseFirestore.instance.collection('crc_stack').doc(widget.stackName)
+                              .collection('${widget.stackName}_docs').add(
+                              {
+                                "class_name": _newCardEditingController.value.text,
+                                "description": '',
+                                "responsibilities": [],
+                                "collaborators": {'-1': ['lol']},
+                                "notes": '',
+
+                              })
+                              .then((value) {});
+                          Navigator.of(alertContext).pop();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  backgroundColor: Colors.green,
+                                  duration: const Duration(seconds: 3),
+                                  content: Text("CRC Card ${_newCardEditingController.value.text} created")
+                              )
+                          );
+                        }
+                    )],
+                ),
+              ]
+          );
+        }
+    );
   }
 
   _save(BuildContext context, snapshot) async {

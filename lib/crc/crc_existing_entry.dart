@@ -32,6 +32,7 @@ class CRCEntryExistingState extends State<CRCEntryExisting> with TickerProviderS
   final TextEditingController _titleEditingController = TextEditingController();
   final TextEditingController _descriptionEditingController = TextEditingController();
   final TextEditingController _notesEditingController = TextEditingController();
+  final TextEditingController _newCardEditingController = TextEditingController();
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
@@ -361,6 +362,13 @@ class CRCEntryExistingState extends State<CRCEntryExisting> with TickerProviderS
           _save(context, crc);
         },
       ),
+      const Spacer(),
+      TextButton(
+        child: const Text('Add Collaborator'),
+        onPressed: () {
+          _addCard();
+        },
+      ),
       // const Spacer(),
       // TextButton(
       //   child: const Text('Check'),
@@ -490,6 +498,56 @@ class CRCEntryExistingState extends State<CRCEntryExisting> with TickerProviderS
     );
   }
 
+  _addCard(){
+    _newCardEditingController.clear();
+    return showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext alertContext) {
+          return AlertDialog(
+              title: const Text("Add Stack"),
+              content: const Text(
+                  "Please enter the name of your new CRC Card"),
+              actions: [
+                TextFormField(
+                  controller: _newCardEditingController,
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: <Widget> [
+                    TextButton(child: const Text("Cancel"),
+                      onPressed: () => {Navigator.of(alertContext).pop()},
+                    ),
+                    TextButton(child: const Text("Add"),
+                        onPressed: () async {
+                          FirebaseFirestore.instance.collection('crc_stack').doc(widget.stackName)
+                              .collection('${widget.stackName}_docs').add(
+                              {
+                                "class_name": _newCardEditingController.value.text,
+                                "description": '',
+                                "responsibilities": [],
+                                "collaborators": {'-1': ['lol']},
+                                "notes": '',
+
+                              })
+                              .then((value) {});
+                          Navigator.of(alertContext).pop();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  backgroundColor: Colors.green,
+                                  duration: const Duration(seconds: 3),
+                                  content: Text("CRC Card ${_newCardEditingController.value.text} created")
+                              )
+                          );
+                        }
+                    )],
+                ),
+              ]
+          );
+        }
+    );
+  }
+
   @override
   void initState(){
     super.initState();
@@ -531,18 +589,20 @@ class CRCEntryExistingState extends State<CRCEntryExisting> with TickerProviderS
         responsibilityTextFormFields.add(responseCol);
       });
     }
-    var index = 0;
+
     var currCard = crc['class_name'];
     var collaborators = crc['collaborators'] as Map;
-    print(collaborators);
     collaborators.forEach((key, collaborator) {
+      print(collaborator);
+      List<String> collaboratorList = [];
       setState(() {
-        List<String> collaboratorList = [];
-        for(var collab in collaborator){
-          collaboratorList.add(collab.toString());
+        if(key != '-1') {
+          for (var collab in collaborator) {
+            collaboratorList.add(collab.toString());
+          }
+          collaboratorEntries.add(DropDownExisting(collaboratorList, int.parse(key), currCard, widget.stackName));
+          collaboratorData.add(collaboratorList);
         }
-        collaboratorEntries.add(DropDownExisting(collaboratorList, index, currCard, widget.stackName));
-        collaboratorData.add(collaboratorList);
       });
     });
 
