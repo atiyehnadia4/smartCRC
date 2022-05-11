@@ -231,7 +231,7 @@ class CRCStudyState extends State<CRCStudy> {
             child: Column(
               children: <Widget>[
                 for(var response in responsibilities)
-                  Text('- $response', textAlign: TextAlign.center, style: const TextStyle(fontSize: 20),),
+                  Text(response, textAlign: TextAlign.center, style: const TextStyle(fontSize: 20),),
               ],
             )
         ),
@@ -255,7 +255,7 @@ class CRCStudyState extends State<CRCStudy> {
           child: Column(
             children: <Widget> [
               for(var collab in collaborators)
-                Text('- $collab', textAlign: TextAlign.center, style: const TextStyle(fontSize: 20),),
+                Text(collab, textAlign: TextAlign.center, style: const TextStyle(fontSize: 20),),
             ],
             crossAxisAlignment: CrossAxisAlignment.center,
           ),

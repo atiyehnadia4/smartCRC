@@ -1,10 +1,19 @@
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flip_card/flip_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_slidable/flutter_slidable.dart';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:smart_crc_gf/crc/crc_list.dart';
+import 'dart:convert';
+
+import 'package:smart_crc_gf/main.dart';
+import 'package:share_extend/share_extend.dart';
+
+
 
 class CRCStack extends StatefulWidget {
 
@@ -34,8 +43,111 @@ class CRCStackState extends State<CRCStack> {
         bottomNavigationBar: BottomNavigationBar(
           items: [
             BottomNavigationBarItem(icon: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.blue,), onPressed: () {
-              Navigator.pop(context);
-            },), label: 'Back'),
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const SmartCRC())
+              );
+            },),
+                label: 'Back'),
+            BottomNavigationBarItem(icon: IconButton(icon: const Icon(Icons.import_export, color: Colors.blue,), onPressed: () async {
+              final result = await FilePicker.platform.pickFiles();
+
+              if (result != null) {
+
+                var existingStackSnapshot = await FirebaseFirestore.instance.collection('crc_stack').get();
+
+                List stackList = existingStackSnapshot.docs;
+
+                var seenStack =  [];
+                for(DocumentSnapshot stack in stackList){
+                  seenStack.add(stack.id);
+                }
+
+
+                File f = File(result.files.single.path);
+
+                final data = await json.decode(f.readAsStringSync());
+
+                if(!seenStack.contains(data['name'])){
+                  FirebaseFirestore.instance.collection('crc_stack').doc(data['name']).set({
+                    "test": "test",
+                  });
+
+                  var seenCrc =  [];
+                  var importedCollabDicts = [];
+                  for(var card in data['cards']){
+                    FirebaseFirestore.instance.collection('crc_stack').doc(data['name']).collection('${data['name']}_docs').add({
+                      "class_name": card['className'],
+                      "description": card['description'],
+                      "responsibilities": card['responsibilities'],
+                      "collaborators" : card['collaborators'][0] as Map,
+                      "notes" : card['notes'],
+                    });
+                    seenCrc.add(card['className']);
+                    importedCollabDicts.add(card['collaborators'][0] as Map);
+                  }
+
+
+
+
+
+                  var addCRC = [];
+                  for(var importedCollaborators in importedCollabDicts){
+                    importedCollaborators.forEach((key, value) {
+                      for(var collaborator in value){
+                        if(!seenCrc.contains(collaborator)){
+                          addCRC.add(collaborator);
+                        }
+                      }
+                    });
+                  }
+
+                  var seen = [];
+                  for(var add in addCRC){
+                    if(!seen.contains(add)){
+                      FirebaseFirestore.instance.collection('crc_stack').doc(data['name'])
+                          .collection('${data['name']}_docs').add(
+                          {
+                            "class_name": add,
+                            "description": '',
+                            "responsibilities": [],
+                            "collaborators": {'-1': ['lol']},
+                            "notes": '',
+
+                          })
+                          .then((value) {});
+                      seen.add(add);
+                    }
+                  }
+                }
+                else{
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    backgroundColor: Colors.red,
+                    duration: Duration(seconds: 5),
+                    content: Text('Stack Already Exists'),
+                  ));
+                }
+
+
+
+                Navigator.of(context);
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const CRCStack())
+                );
+
+
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  backgroundColor: Colors.red,
+                  duration: Duration(seconds: 5),
+                  content: Text('No File Selected'),
+                ));
+
+              }
+            },), label: 'Import Stack'),
             BottomNavigationBarItem(icon: IconButton(icon: const  Icon(Icons.add, color: Colors.blue,), onPressed: () {
               _addStack();
               index++;
@@ -90,7 +202,7 @@ class CRCStackState extends State<CRCStack> {
     );
   }
 
-  _deleteStack(BuildContext context, snapshot, cardIndex) {
+  _deleteStack(BuildContext context, snapshot, cardIndex, crcStack) {
     return showDialog(
         context: context,
         barrierDismissible: false,
@@ -105,9 +217,22 @@ class CRCStackState extends State<CRCStack> {
                 ),
                 TextButton(child: const Text("Delete"),
                     onPressed: () async {
-                      await FirebaseFirestore.instance.runTransaction((Transaction myTransaction) async {
+                      var documentSnaps = await FirebaseFirestore.instance.collection('crc_stack').doc(crcStack.id).collection('${crcStack.id}_docs').get();
+                      List docs = documentSnaps.docs;
+
+                      for(DocumentSnapshot doc in docs){
+                        await FirebaseFirestore.instance.runTransaction((
+                            Transaction myTransaction) async {
+                          myTransaction.delete(doc.reference);
+                        });
+                      }
+
+                      await FirebaseFirestore.instance.runTransaction((
+                          Transaction myTransaction) async {
                         myTransaction.delete(snapshot.data.docs[cardIndex].reference);
                       });
+
+
                       stacks.removeAt(cardIndex);
                       cardList.removeAt(cardIndex);
                       Navigator.of(context).pop();
@@ -118,6 +243,11 @@ class CRCStackState extends State<CRCStack> {
                               duration: Duration(seconds: 3),
                               content: Text("CRC Stack deleted")
                           )
+                      );
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const CRCStack())
                       );
                     }
                 )
@@ -329,15 +459,59 @@ class CRCStackState extends State<CRCStack> {
                   shrinkWrap: true,
                   children: [
                     ListTile(
-                      onTap: () {},
-                      leading: const Icon(Icons.ios_share),
-                      title: const Text('Share'),
+                      onTap: () async {
+                        var cards = [];
+                        var snap = await FirebaseFirestore.instance.collection('crc_stack').doc(crcStack.id).collection('${crcStack.id}_docs').get();
+
+                        List cardList = snap.docs;
+
+                        for(var card in cardList){
+                          var cardString = '{\n "className" : "${card['class_name']}",\n "responsibilities" : ${card['responsibilities']}, \n "collaborators" : [${card['collaborators']}],\n "note" : "${card['notes']}", \n "description" : "${card['description']}" \n }';
+                          cards.add(cardString);
+                        }
+                        var jsonToWrite = '{\n''"name" : "${crcStack.id}",\n''"cards" : ${cards.toString()} \n }';
+              
+                        _write(jsonToWrite, crcStack.id);
+                        Navigator.of(context).pop();
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          backgroundColor: Colors.blue,
+                          duration: Duration(seconds: 5),
+                          content: Text('Exported File!'),
+                        ));
+                      },
+                      leading: const Icon(Icons.import_export),
+                      title: const Text('Export'),
                     ),
                     ListTile(
-                      onTap: () => _deleteStack(context, snapshot, cardIndex),
+                      onTap:() async {
+                        var cards = [];
+                        var snap = await FirebaseFirestore.instance.collection('crc_stack').doc(crcStack.id).collection('${crcStack.id}_docs').get();
+
+                        List cardList = snap.docs;
+
+                        for(var card in cardList){
+                          var cardString = '{\n "className" : "${card['class_name']}",\n "responsibilities" : ${card['responsibilities']}, \n "collaborators" : [${card['collaborators']}],\n "note" : "${card['notes']}", \n "description" : "${card['description']}" \n }';
+                          cards.add(cardString);
+                        }
+                        var jsonToWrite = '{\n''"name" : "${crcStack.id}",\n''"cards" : ${cards.toString()} \n }';
+
+                        _writeForShare(jsonToWrite, crcStack.id);
+
+                        Navigator.of(context).pop();
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          backgroundColor: Colors.blue,
+                          duration: Duration(seconds: 5),
+                          content: Text('Shared File!'),
+                        ));
+                      },
+                      leading: const Icon(Icons.share),
+                      title: Text('Share ${crcStack.id}')
+                    ),
+                    ListTile(
+                      onTap: () => _deleteStack(context, snapshot, cardIndex, crcStack),
                       leading: const Icon(Icons.delete, color: Colors.red,),
                       title: Text('Delete ${crcStack.id}')
-                    )
+                    ),
                   ],
                 );
               },
@@ -346,6 +520,22 @@ class CRCStackState extends State<CRCStack> {
         }
     );
   }
+
+  _write(String text, stackName) async {
+    final Directory directory = await getApplicationDocumentsDirectory();
+    final File file = File('${directory.path}/$stackName.json');
+    await file.writeAsString(text);
+
+  }
+
+  _writeForShare(String text, stackName) async {
+    final Directory directory = await getApplicationDocumentsDirectory();
+    final File file = File('${directory.path}/$stackName.json');
+    await file.writeAsString(text);
+
+    ShareExtend.share(file.path, "file");
+  }
+
 
   @override
   void initState() {

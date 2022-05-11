@@ -33,11 +33,16 @@ class _DropDownExistingState extends State<DropDownExisting> {
 
   _controllerHelper(snapshot,[bool editable = false, bool scrollable = false]) {
     var collaborators = ['Will edit'];
-
     List<String> newValue  = widget.value;
+    print(newValue);
     for (var i = 0; i < snapshot.data.docs.length; i++) {
       var card = snapshot.data.docs[i];
       collaborators.add(card['class_name']);
+      for(var val in widget.value){
+        if(!collaborators.contains(val)){
+          collaborators.add(val);
+        }
+      }
     }
     collaborators.remove(widget.currCard);
 

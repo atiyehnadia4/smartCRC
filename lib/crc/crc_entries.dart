@@ -69,15 +69,15 @@ class CRCEntryNewState extends State<CRCEntryNew> with TickerProviderStateMixin 
                         const SizedBox(
                           height: 80.0,
                         ),
-                        Align(
-                          alignment: Alignment.center,
-                          child: TextButton(
-                            child: const Text('Import'),
-                            onPressed: () {
-                              print('ol');
-                            },
-                          ),
-                        ),
+                        // Align(
+                        //   alignment: Alignment.center,
+                        //   child: TextButton(
+                        //     child: const Text('Import'),
+                        //     onPressed: () {
+                        //       print('ol');
+                        //     },
+                        //   ),
+                        // ),
                         const Text("Create CRC Card",
                             textAlign: TextAlign.center,
                             style: TextStyle(fontSize: 20.0)),

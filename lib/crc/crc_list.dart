@@ -1,8 +1,12 @@
+import 'dart:io';
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flip_card/flip_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:smart_crc_gf/crc/crc_entries.dart';
 import 'package:smart_crc_gf/crc/crc_stack.dart';
 import 'package:smart_crc_gf/crc/crc_study_mode.dart';
@@ -29,25 +33,100 @@ class CRCListState extends State<CRCList> {
     ]);
     return Scaffold(
         appBar: AppBar(
-          automaticallyImplyLeading: false,
+          leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white,), onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const CRCStack()),
+            );
+          },),
           title: Text('${widget.stackName} Stack',
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 20.0)),
         ),
         bottomNavigationBar: BottomNavigationBar(
           items: [
-            BottomNavigationBarItem(icon: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.blue,), onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const CRCStack()),
-              );
-            },), label: 'Back'),
             BottomNavigationBarItem(icon: IconButton(icon: const Icon(Icons.auto_awesome_motion,color: Colors.blue,), onPressed: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => CRCStudy(widget.stackName)),
               );
             },), label: 'Study Mode'),
+            BottomNavigationBarItem(icon: IconButton(icon: const Icon(Icons.import_export, color: Colors.blue,), onPressed: () async {
+              final result = await FilePicker.platform.pickFiles();
+
+              if (result != null) {
+                var existingCardSnapshot = await FirebaseFirestore.instance.collection('crc_stack').doc(widget.stackName).collection('${widget.stackName}_docs')
+                    .get();
+
+                List crcCardList = existingCardSnapshot.docs;
+                var seenCrc =  [];
+                for(var crc in crcCardList){
+                  seenCrc.add(crc['class_name'] ?? '');
+                }
+
+                File f = File(result.files.single.path);
+                final data = await json.decode(f.readAsStringSync());
+
+                if(!seenCrc.contains(data['className'])){
+                  FirebaseFirestore.instance.collection('crc_stack').doc(widget.stackName).collection('${widget.stackName}_docs').add({
+                    "class_name": data['className'],
+                    "description": data['description'],
+                    "responsibilities": data['responsibilities'],
+                    "collaborators" : data['collaborators'][0] as Map,
+                    "notes" : data['notes'],
+                  });
+                  var importedCollaborators = data['collaborators'][0] as Map;
+
+                  var addCRC = [];
+                  importedCollaborators.forEach((key, value) {
+                    for(var collaborator in value){
+                      if(!seenCrc.contains(collaborator)){
+                        addCRC.add(collaborator);
+                      }
+                    }
+                  });
+
+
+                  for(var add in addCRC){
+                    FirebaseFirestore.instance.collection('crc_stack').doc(widget.stackName)
+                        .collection('${widget.stackName}_docs').add(
+                        {
+                          "class_name": add,
+                          "description": '',
+                          "responsibilities": [],
+                          "collaborators": {'-1': ['lol']},
+                          "notes": '',
+
+                        })
+                        .then((value) {});
+                  }
+                }
+                else{
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    backgroundColor: Colors.red,
+                    duration: Duration(seconds: 5),
+                    content: Text('CRC Card Already Exists'),
+                  ));
+                }
+
+
+
+                Navigator.of(context);
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => CRCList(widget.index, widget.stackName)));
+
+
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  backgroundColor: Colors.red,
+                  duration: Duration(seconds: 5),
+                  content: Text('No File Selected'),
+                ));
+
+              }
+            },), label: 'Import Card'),
             BottomNavigationBarItem(icon: IconButton(icon: const  Icon(Icons.add, color: Colors.blue,), onPressed: () {
               Navigator.push(
                 context,
@@ -108,7 +187,7 @@ class CRCListState extends State<CRCList> {
                                   );
                                 },
                                 onLongPress: (){
-                                  _showStackSecondaryMenu();
+                                  _showStackSecondaryMenu(index);
                                 },
                               ),
                             )
@@ -122,7 +201,7 @@ class CRCListState extends State<CRCList> {
     );
   }
 
-  _showStackSecondaryMenu() {
+  _showStackSecondaryMenu(index) {
     showModalBottomSheet(
         context: context,
         builder: (context) {
@@ -135,9 +214,23 @@ class CRCListState extends State<CRCList> {
                   shrinkWrap: true,
                   children: [
                     ListTile(
-                      onTap: () {},
-                      leading: const Icon(Icons.ios_share),
-                      title: const Text('Share'),
+                      onTap: () async {
+                        var snap = await FirebaseFirestore.instance.collection('crc_stack').doc(widget.stackName).collection('${widget.stackName}_docs').get();
+
+                        List cardList = snap.docs;
+                        var card = cardList[index];
+                        var cardString = '{\n "className" : "${card['class_name']}",\n "responsibilities" : ${card['responsibilities']}, \n "collaborators" : [${card['collaborators']}],\n "note" : "${card['notes']}", \n "description" : "${card['description']}" \n }';
+
+                        _write(cardString, card['class_name']);
+                        Navigator.of(context).pop();
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          backgroundColor: Colors.blue,
+                          duration: Duration(seconds: 5),
+                          content: Text('Exported File!'),
+                        ));
+                      },
+                      leading: const Icon(Icons.import_export),
+                      title: const Text('Export'),
                     ),
                   ],
                 );
@@ -267,6 +360,12 @@ class CRCListState extends State<CRCList> {
 
         ]
     );
+  }
+
+  _write(String text, cardName) async {
+    final Directory directory = await getApplicationDocumentsDirectory();
+    final File file = File('${directory.path}/${cardName}_${widget.stackName}.json');
+    await file.writeAsString(text);
   }
 
 

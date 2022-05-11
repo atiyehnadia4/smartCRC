@@ -409,17 +409,17 @@ class CRCEntryExistingState extends State<CRCEntryExisting> with TickerProviderS
       duration: Duration(seconds: 4),
       content: Text('CRC Card saved'),
     ));
-
     collaboratorData.clear();
   }
 
   _updateList(type, crc){
     if(type == 'r'){
       var response = _onDone();
+      var collaborator = _onDoneCollaborators();
       FirebaseFirestore.instance.collection('crc_stack').doc(widget.stackName).collection('${widget.stackName}_docs').doc(uid).update(
           {
             "responsibilities": response,
-            "collaborators": collaboratorData
+            "collaborators": collaborator,
           }).then((value){
         print('success');
       });
@@ -505,7 +505,7 @@ class CRCEntryExistingState extends State<CRCEntryExisting> with TickerProviderS
         barrierDismissible: false,
         builder: (BuildContext alertContext) {
           return AlertDialog(
-              title: const Text("Add Stack"),
+              title: const Text("Add Card"),
               content: const Text(
                   "Please enter the name of your new CRC Card"),
               actions: [
